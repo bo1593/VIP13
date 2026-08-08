@@ -201,7 +201,13 @@
     <div class="table-responsive">
       <table>
         <thead>
-          <tr><th>رقم المستخدم (User ID)</th><th>الرصيد الحالي</th><th>الصلاحية</th><th>إضافة / خصم رصيد</th></tr>
+          <tr>
+            <th>ID المستخدم (Short ID)</th>
+            <th>البريد الإلكتروني</th>
+            <th>الرصيد الحالي</th>
+            <th>الصلاحية</th>
+            <th>الإجراءات والتحكم</th>
+          </tr>
         </thead>
         <tbody id="usersTable"></tbody>
       </table>
@@ -343,11 +349,13 @@
     const tbody = document.getElementById('usersTable');
     tbody.innerHTML = (profiles || []).map(u => `
       <tr>
-        <td style="font-size:11px;">${u.id}</td>
+        <td style="color:var(--neon-green); font-weight:900; font-size:14px;">#${u.short_id || 'غير محدد'}</td>
+        <td style="font-size:12px;">${u.email || 'بدون إيميل'}</td>
         <td style="color:var(--neon-cyan); font-weight:800;">$${parseFloat(u.balance || 0).toFixed(2)}</td>
         <td><span class="badge ${u.role === 'admin' ? 'badge-completed' : 'badge-pending'}">${u.role || 'user'}</span></td>
-        <td>
-          <button class="btn btn-cyan" onclick="adjustUserBalance('${u.id}', ${u.balance || 0})"><i class="fa-solid fa-pen"></i> تعديل الرصيد</button>
+        <td style="display:flex; gap:8px;">
+          <button class="btn btn-cyan" onclick="adjustUserBalance('${u.id}', ${u.balance || 0})"><i class="fa-solid fa-pen"></i> الرصيد</button>
+          <button class="btn btn-green" onclick="updateUserShortId('${u.id}', ${u.short_id || 0})"><i class="fa-solid fa-id-card"></i> تعديل ID</button>
         </td>
       </tr>
     `).join('');
@@ -359,6 +367,25 @@
       await _supabase.from('profiles').update({ balance: parseFloat(newBal) }).eq('id', userId);
       alert("تم تحديث رصيد المستخدم!");
       loadUsers();
+    }
+  }
+
+  async function updateUserShortId(userId, currentShortId) {
+    const newShortId = prompt("أدخل الـ ID الجديد للمستخدم (من رقم إلى 6 أرقام):", currentShortId || "");
+    if (newShortId !== null) {
+      const parsedId = parseInt(newShortId);
+      if (isNaN(parsedId) || parsedId < 1 || parsedId > 999999) {
+        alert("خطأ: يجب أن يكون الـ ID رقماً بين 1 و 999999 فقط!");
+        return;
+      }
+      
+      const { error } = await _supabase.from('profiles').update({ short_id: parsedId }).eq('id', userId);
+      if (error) {
+        alert("تعذر التحديث: " + (error.code === '23505' ? "هذا الـ ID مستخدم بالفعل لـ مستخدم آخر!" : error.message));
+      } else {
+        alert("تم تحديث ID المستخدم بنجاح!");
+        loadUsers();
+      }
     }
   }
 
