@@ -523,15 +523,20 @@
         return;
       }
 
-      container.innerHTML = filtered.map(p => `
-        <div class="product-card" onclick="openGamePackages('${p.category || p.title}')">
-          <span class="product-badge">${p.badge || 'PROMO'}</span>
-          <img src="${p.image_url}" class="product-img" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3738/3738567.png'">
-          <div class="product-title">${p.title}</div>
-          <div class="product-price">${parseFloat(p.price || 0).toFixed(2)} USD</div>
-          <button class="neon-btn" onclick="event.stopPropagation(); buyProduct('${p.title}', ${p.price || 0})">شحن مباشر</button>
-        </div>
-      `).join('');
+      const defaultImg = "https://cdn-icons-png.flaticon.com/512/3738/3738567.png";
+
+      container.innerHTML = filtered.map(p => {
+        const imgSrc = (p.image_url && p.image_url.trim() !== "") ? p.image_url : defaultImg;
+        return `
+          <div class="product-card" onclick="openGamePackages('${p.category || p.title}')">
+            <span class="product-badge">${p.badge || 'PROMO'}</span>
+            <img src="${imgSrc}" class="product-img" onerror="this.onerror=null; this.src='${defaultImg}';">
+            <div class="product-title">${p.title}</div>
+            <div class="product-price">${parseFloat(p.price || 0).toFixed(2)} USD</div>
+            <button class="neon-btn" onclick="event.stopPropagation(); buyProduct('${p.title}', ${p.price || 0})">شحن مباشر</button>
+          </div>
+        `;
+      }).join('');
     }
 
     // Modal Packages Control (فتح باقات الألعاب المحددة مثل PUBG UC)
@@ -548,15 +553,23 @@
         return;
       }
 
-      list.innerHTML = packages.map(pkg => `
-        <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:12px; display:flex; justify-content:space-between; align-items:center;">
-          <div style="text-align:right;">
-            <div style="font-weight:800; font-size:13px;">${pkg.title}</div>
-            <div style="color:var(--neon-cyan); font-weight:900; font-size:12px;">$${parseFloat(pkg.price || 0).toFixed(2)} USD</div>
+      const defaultImg = "https://cdn-icons-png.flaticon.com/512/3738/3738567.png";
+
+      list.innerHTML = packages.map(pkg => {
+        const imgSrc = (pkg.image_url && pkg.image_url.trim() !== "") ? pkg.image_url : defaultImg;
+        return `
+          <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:12px; display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; align-items:center; gap:10px; text-align:right;">
+              <img src="${imgSrc}" style="width:36px; height:36px; border-radius:8px; object-fit:cover;" onerror="this.onerror=null; this.src='${defaultImg}';">
+              <div>
+                <div style="font-weight:800; font-size:13px;">${pkg.title}</div>
+                <div style="color:var(--neon-cyan); font-weight:900; font-size:12px;">$${parseFloat(pkg.price || 0).toFixed(2)} USD</div>
+              </div>
+            </div>
+            <button class="neon-btn" style="width:auto;" onclick="buyProduct('${pkg.title}', ${pkg.price})">شحن الآن</button>
           </div>
-          <button class="neon-btn" style="width:auto;" onclick="buyProduct('${pkg.title}', ${pkg.price})">شحن الآن</button>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     function closeModal() {
@@ -579,21 +592,56 @@
         return;
       }
 
+      // 1. التحقق من وجود رصيد كافٍ
+      const { data: profile, error: profileErr } = await _supabase
+        .from('profiles')
+        .select('balance')
+        .eq('id', currentUser.id)
+        .single();
+
+      if (profileErr || !profile) {
+        alert("تعذر التحقق من الرصيد، يرجى إعادة المحاولة.");
+        return;
+      }
+
+      const currentBalance = parseFloat(profile.balance || 0);
+      const productPrice = parseFloat(price);
+
+      if (currentBalance < productPrice) {
+        alert(`رصيدك غير كافٍ! رصيدك الحالي هو $${currentBalance.toFixed(2)} بينما سعر الباقة $${productPrice.toFixed(2)}`);
+        return;
+      }
+
       const playerId = prompt(`أدخل الـ ID الخاص بك لـ (${title}):`);
       if (!playerId) return;
 
-      const { error } = await _supabase.from('orders').insert([{
+      // 2. خصم السعر من حساب المستخدم
+      const newBalance = currentBalance - productPrice;
+      const { error: updateErr } = await _supabase
+        .from('profiles')
+        .update({ balance: newBalance })
+        .eq('id', currentUser.id);
+
+      if (updateErr) {
+        alert("حدث خطأ أثناء الخصم من الرصيد: " + updateErr.message);
+        return;
+      }
+
+      // 3. إضافة الطلب إلى قاعدة البيانات
+      const { error: orderErr } = await _supabase.from('orders').insert([{
         user_id: currentUser.id,
         game_name: title,
         player_id: playerId,
         package_name: title,
-        price: price,
+        price: productPrice,
         order_type: 'charge'
       }]);
 
-      if (error) alert(error.message);
-      else {
-        alert("تم إرسال طلب الشحن بنجاح!");
+      if (orderErr) {
+        alert("حدث خطأ أثناء تسجيل الطلب: " + orderErr.message);
+      } else {
+        alert("تم الخصم وتسجيل طلب الشحن بنجاح!");
+        loadBalance();
         closeModal();
         showPage('ordersPage', 'nav-ordersPage');
         loadOrders();
@@ -663,4 +711,3 @@
   </script>
 </body>
 </html>
-
