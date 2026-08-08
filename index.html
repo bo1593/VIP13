@@ -160,6 +160,18 @@
     }
     .form-input:focus { border-color: var(--neon-cyan); box-shadow: 0 0 10px rgba(0, 243, 255, 0.3); }
 
+    /* PAYMENT METHOD CARDS */
+    .payment-methods-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .payment-card {
+      background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1);
+      padding: 12px; border-radius: 14px; text-align: center; cursor: pointer; transition: 0.3s;
+    }
+    .payment-card.active, .payment-card:hover {
+      border-color: var(--neon-cyan); background: rgba(0, 243, 255, 0.08);
+      box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
+    }
+    .payment-card i { font-size: 20px; color: var(--neon-cyan); margin-bottom: 6px; }
+
     /* AUTH SWITCH TABS */
     .auth-tabs { display: flex; background: rgba(0,0,0,0.4); padding: 4px; border-radius: 10px; margin-bottom: 14px; }
     .auth-tab-btn { flex: 1; padding: 8px; border: none; background: transparent; color: var(--text-muted); font-weight: 800; font-size: 11px; cursor: pointer; border-radius: 8px; }
@@ -254,15 +266,64 @@
         <h3 style="color:var(--neon-cyan); margin-bottom:14px; font-size:15px; text-align:right;">
           <i class="fa-solid fa-plus-circle"></i> طلب إيداع رصيد
         </h3>
-        <div class="form-group">
-          <label class="form-label">المبلغ المراد إيداعه ($):</label>
-          <input type="number" id="depAmount" class="form-input" placeholder="10.00" step="0.1">
+
+        <!-- اختيار طريقة الإيداع -->
+        <label class="form-label">اختر طريقة الإيداع:</label>
+        <div class="payment-methods-grid">
+          <div class="payment-card" id="payVodafone" onclick="selectPaymentMethod('Vodafone Cash', this)">
+            <i class="fa-solid fa-mobile-screen-button"></i>
+            <div style="font-size:12px; font-weight:800;">فودافون كاش</div>
+          </div>
+          <div class="payment-card" id="payEtisalat" onclick="selectPaymentMethod('Etisalat Cash', this)">
+            <i class="fa-solid fa-mobile-retro"></i>
+            <div style="font-size:12px; font-weight:800;">اتصالات كاش</div>
+          </div>
         </div>
-        <div class="form-group">
-          <label class="form-label">صورة إثبات التحويل (Screenshot):</label>
-          <input type="file" id="depFile" class="form-input" accept="image/*">
+
+        <!-- تفاصيل طريقة الدفع ورقم الكاش -->
+        <div id="depositDetailsArea" style="display:none;">
+          <div style="background: rgba(255, 71, 87, 0.1); border: 1px solid #ff4757; color: #ff4757; padding: 10px; border-radius: 10px; font-size: 11px; font-weight: 800; margin-bottom: 12px; text-align: right;">
+            <i class="fa-solid fa-circle-exclamation"></i> تنبيه: الحد الأدنى للإيداع هو 100 جنيه مصري.
+          </div>
+
+          <div style="background: rgba(0,0,0,0.4); border: 1px dashed var(--neon-cyan); padding: 12px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <div style="text-align: right;">
+              <span style="font-size: 10px; color: var(--text-muted); display: block;">رقم المحفظة للتحويل:</span>
+              <strong style="font-size: 14px; color: var(--neon-cyan);">01044580421</strong>
+            </div>
+            <button onclick="copyCashNumber('01044580421')" style="background: transparent; border: none; color: var(--neon-cyan); cursor: pointer; padding: 6px 10px;" title="نسخ الرقم">
+              <i class="fa-regular fa-copy" style="font-size: 18px;"></i>
+            </button>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">المبلغ بالجنيه المصري (EGP):</label>
+            <input type="number" id="depAmountEgp" class="form-input" placeholder="100" min="100">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">اسم صاحب المحفظة:</label>
+            <input type="text" id="senderName" class="form-input" placeholder="مثال: أحمد محمد">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">رقم المحفظة المحول منه:</label>
+            <input type="tel" id="senderPhone" class="form-input" placeholder="010xxxxxxx">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">وقت التحويل:</label>
+            <input type="time" id="transferTime" class="form-input">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">صورة إثبات التحويل (Screenshot):</label>
+            <input type="file" id="depFile" class="form-input" accept="image/*">
+          </div>
+
+          <button class="neon-btn" style="margin-top:10px;" onclick="submitDeposit()">إرسال طلب الإيداع</button>
         </div>
-        <button class="neon-btn" style="margin-top:10px;" onclick="submitDeposit()">إرسال طلب الإيداع</button>
+
       </div>
     </div>
 
@@ -323,6 +384,18 @@
       <div class="glass-box" id="userInfoBox" style="display:none; text-align:right;">
         <h3 style="color:var(--neon-cyan); margin-bottom:8px;"><i class="fa-solid fa-circle-check"></i> مرحباً بك</h3>
         <p id="userEmailDisplay" style="font-size:13px; margin:8px 0; color:var(--text-muted);"></p>
+        
+        <!-- عنصر عرض المعرّف ID المستخدم -->
+        <div style="background: rgba(0,0,0,0.3); border: 1px dashed var(--neon-cyan); border-radius: 10px; padding: 10px; margin: 12px 0; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <span style="font-size: 11px; color: var(--text-muted); display: block;">معرف الحساب (ID):</span>
+            <strong id="userIdDisplay" style="font-size: 12px; color: var(--neon-cyan); word-break: break-all;">-</strong>
+          </div>
+          <button onclick="copyUserId()" style="background: transparent; border: none; color: var(--neon-cyan); cursor: pointer; padding: 4px 8px;" title="نسخ">
+            <i class="fa-regular fa-copy" style="font-size: 16px;"></i>
+          </button>
+        </div>
+
         <button class="neon-btn" style="border-color:#ff4757; color:#ff4757; margin-top:12px;" onclick="logout()"><i class="fa-solid fa-power-off"></i> تسجيل الخروج</button>
       </div>
     </div>
@@ -364,6 +437,7 @@
     let deferredPrompt = null;
     let allProducts = [];
     let currentCategory = 'الكل';
+    let selectedPaymentGateway = null;
 
     // PWA Prompt
     window.addEventListener('beforeinstallprompt', (e) => {
@@ -416,6 +490,11 @@
         document.getElementById('userInfoBox').style.display = 'block';
         document.getElementById('balanceDisplayBar').style.display = 'flex';
         document.getElementById('userEmailDisplay').innerText = user.email || user.phone || "مستخدم مسجل";
+        
+        // عرض المعرّف ID في صفحة Profile
+        const idElem = document.getElementById('userIdDisplay');
+        if (idElem) idElem.innerText = user.id;
+
         loadBalance();
         loadOrders();
         checkAdminRole(user.id);
@@ -424,6 +503,35 @@
         document.getElementById('userInfoBox').style.display = 'none';
         document.getElementById('balanceDisplayBar').style.display = 'none';
       }
+    }
+
+    // نسخ الـ User ID عند الضغط على زر النسخ
+    function copyUserId() {
+      const userIdText = document.getElementById('userIdDisplay').innerText;
+      if (userIdText && userIdText !== '-') {
+        navigator.clipboard.writeText(userIdText).then(() => {
+          alert('تم نسخ معرف الحساب بنجاح!');
+        }).catch(err => {
+          console.error('فشل النسخ: ', err);
+        });
+      }
+    }
+
+    // نسخ رقم محفظة الكاش
+    function copyCashNumber(num) {
+      navigator.clipboard.writeText(num).then(() => {
+        alert('تم نسخ رقم الكاش بنجاح: ' + num);
+      }).catch(err => {
+        console.error('فشل النسخ: ', err);
+      });
+    }
+
+    // اختيار طريقة الدفع والإيداع
+    function selectPaymentMethod(methodName, el) {
+      selectedPaymentGateway = methodName;
+      document.querySelectorAll('.payment-card').forEach(c => c.classList.remove('active'));
+      if(el) el.classList.add('active');
+      document.getElementById('depositDetailsArea').style.display = 'block';
     }
 
     async function checkAdminRole(userId) {
@@ -539,7 +647,7 @@
       }).join('');
     }
 
-    // Modal Packages Control (فتح باقات الألعاب المحددة مثل PUBG UC)
+    // Modal Packages Control
     async function openGamePackages(gameCategory) {
       document.getElementById('modalGameTitle').innerText = `باقات ${gameCategory}`;
       const list = document.getElementById('packagesList');
@@ -592,7 +700,6 @@
         return;
       }
 
-      // 1. التحقق من وجود رصيد كافٍ
       const { data: profile, error: profileErr } = await _supabase
         .from('profiles')
         .select('balance')
@@ -615,7 +722,6 @@
       const playerId = prompt(`أدخل الـ ID الخاص بك لـ (${title}):`);
       if (!playerId) return;
 
-      // 2. خصم السعر من حساب المستخدم
       const newBalance = currentBalance - productPrice;
       const { error: updateErr } = await _supabase
         .from('profiles')
@@ -627,7 +733,6 @@
         return;
       }
 
-      // 3. إضافة الطلب إلى قاعدة البيانات
       const { error: orderErr } = await _supabase.from('orders').insert([{
         user_id: currentUser.id,
         game_name: title,
@@ -648,13 +753,26 @@
       }
     }
 
+    // إرسال طلب الإيداع الجديد بالأعمال المطلوبة
     async function submitDeposit() {
       if (!currentUser) return alert("سجل دخول أولاً!");
+      if (!selectedPaymentGateway) return alert("يرجى اختيار طريقة الإيداع (فودافون كاش أو اتصالات كاش)!");
 
-      const amount = document.getElementById('depAmount').value;
+      const amountEgp = document.getElementById('depAmountEgp').value;
+      const senderName = document.getElementById('senderName').value.trim();
+      const senderPhone = document.getElementById('senderPhone').value.trim();
+      const transferTime = document.getElementById('transferTime').value;
       const fileInput = document.getElementById('depFile');
 
-      if (!amount || fileInput.files.length === 0) return alert("يرجى إدخال المبلغ وإرفاق صورة الإثبات!");
+      if (!amountEgp || parseFloat(amountEgp) < 100) {
+        return alert("الحد الأدنى للإيداع هو 100 جنيه مصري!");
+      }
+      if (!senderName || !senderPhone || !transferTime) {
+        return alert("يرجى ملء كافة الحسابات (اسم المحول، رقم المحفظة، وقت التحويل)!");
+      }
+      if (fileInput.files.length === 0) {
+        return alert("يرجى إرفاق صورة إثبات التحويل (Screenshot)!");
+      }
 
       const file = fileInput.files[0];
       const fileName = `${Date.now()}_${file.name}`;
@@ -666,17 +784,17 @@
 
       const { error } = await _supabase.from('orders').insert([{
         user_id: currentUser.id,
-        game_name: 'إيداع رصيد',
-        player_id: currentUser.email || currentUser.phone,
-        package_name: `إيداع بقيمة $${amount}`,
-        price: parseFloat(amount),
+        game_name: `إيداع (${selectedPaymentGateway})`,
+        player_id: senderPhone,
+        package_name: `إيداع: ${amountEgp} EGP | اسم صاحب المحفظة: ${senderName} | الوقت: ${transferTime}`,
+        price: parseFloat(amountEgp),
         order_type: 'deposit',
         receipt_url: publicUrl.publicUrl
       }]);
 
       if (error) alert(error.message);
       else {
-        alert("تم إرسال طلب الإيداع بنجاح!");
+        alert("تم إرسال طلب الإيداع بنجاح لتقوم المراجعة من الأدمن!");
         showPage('ordersPage', 'nav-ordersPage');
         loadOrders();
       }
@@ -695,9 +813,9 @@
         <div class="glass-box" style="text-align:right;">
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <strong style="font-size:13px;">${o.game_name}</strong>
-            <span style="color:var(--neon-green); font-weight:800;">$${parseFloat(o.price || 0).toFixed(2)}</span>
+            <span style="color:var(--neon-green); font-weight:800;">${parseFloat(o.price || 0).toFixed(2)} ${o.order_type === 'deposit' ? 'EGP' : 'USD'}</span>
           </div>
-          <div style="font-size:11px; color:var(--text-muted); margin-top:8px; display:flex; justify-content:space-between;">
+          <div style="font-size:11px; color:var(--text-muted); margin-top:8px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:5px;">
             <span>الحالة: <strong style="color:var(--neon-cyan);">${o.status || 'قيد الانتظار'}</strong></span>
             <span>${o.package_name || ''}</span>
           </div>
